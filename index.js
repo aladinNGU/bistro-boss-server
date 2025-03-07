@@ -78,35 +78,30 @@ async function run() {
       const user = await userCollection.findOne(query);
       const isAdmin = user?.role === "admin";
       if (!isAdmin) {
-        res.status(403).send({ message: "forbidden access" });
+        return res.status(403).send({ message: "forbidden access" });
       }
       next();
     };
     // users related APIs
 
-    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
+    app.get("/users", async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
 
-    app.get(
-      "/users/admin/:email",
-      verifyToken,
-      verifyAdmin,
-      async (req, res) => {
-        const email = req.params.email;
-        if (email !== req.decoded.email) {
-          return res.status(403).send({ message: "forbidden access" });
-        }
-        const query = { email: email };
-        const user = await userCollection.findOne(query);
-        let admin = false;
-        if (user) {
-          admin = user?.role === "admin";
-        }
-        res.send({ admin });
+    app.get("/users/admin/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden access" });
       }
-    );
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin";
+      }
+      res.send({ admin });
+    });
 
     app.post("/users", async (req, res) => {
       const user = req.body;
@@ -121,17 +116,22 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/users/admin/:id",verifyToken, verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const updateUser = {
-        $set: {
-          role: "admin",
-        },
-      };
-      const result = await userCollection.updateOne(filter, updateUser);
-      res.send(result);
-    });
+    app.patch(
+      "/users/admin/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updateUser = {
+          $set: {
+            role: "admin",
+          },
+        };
+        const result = await userCollection.updateOne(filter, updateUser);
+        res.send(result);
+      }
+    );
 
     app.delete("/users/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
@@ -147,13 +147,50 @@ async function run() {
       res.send(result);
     });
 
+    app.patch('/menu/:id', async (req, res)=>{
+      const item = req.body;
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)}
+      const updatedMenu = {
+        $set:{
+          name: item.name,
+          category: item.category,
+          recipe: item.recipe,
+          price: item.price,
+          image: item.image
+        }
+      }
+      const result = await menuCollection.updateOne(filter, updatedMenu)
+      res.send(result)
+    })
+
+    app.get("/menu/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id)};
+      const result = await menuCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.post("/menu", async (req, res) => {
+      const item = req.body;
+      const result = await menuCollection.insertOne(item);
+      res.send(result);
+    });
+
+    app.delete("/menu/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await menuCollection.deleteOne(query);
+      res.send(result);
+    });
+
     app.get("/reviews", async (req, res) => {
       const result = await reviewCollection.find().toArray();
       res.send(result);
     });
 
     //Cart related APIs
-    app.post("/carts", async (req, res) => {
+    app.post("/carts", verifyToken, async (req, res) => {
       const cartItem = req.body;
       const result = await cartCollection.insertOne(cartItem);
       res.send(result);
